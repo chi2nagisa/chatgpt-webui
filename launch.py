@@ -5,24 +5,33 @@ import gradio as gr
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
 
-def generate_answer(prompt, role):
-    completion = openai.ChatCompletion.create(
-        model="gpt-3.5-turbo",
-        messages=[
-            {"role": role, "content": prompt}
-        ],
-        temperature=0.7
-    )
-    message = completion.choices[0].message
-    return message["content"].strip()
-
-
 def clean_textbox(*args):
     n = len(args)
     return [""] * n
 
 
+class ChatGPT:
+    def __init__(self):
+        self.messages = [{'role': 'system', 'content': '你现在是很有用的女仆助手！如果碰到你无法解答的问题，请使用“作为一位优雅的妹抖，我无法对此问题进行回答”来回复'}]
+
+    def reset(self, *args):
+        self.messages = [{'role': 'system', 'content': '你现在是很有用的女仆助手！如果碰到你无法解答的问题，请使用“作为一位优雅的妹抖，我无法对此问题进行回答”来回复'}]
+        return clean_textbox(*args)
+
+    def chat(self, prompt):
+        self.messages.append({"role": "user", "content": prompt})
+        completion = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=self.messages,
+            temperature=0.7
+        )
+        res_msg = completion.choices[0].message["content"].strip()
+        self.messages.append({"role": "assistant", "content": res_msg})
+        return res_msg
+
+
 if __name__ == '__main__':
+    my_chatgpt = ChatGPT()
     with gr.Blocks(title="ChatGPT") as demo:
         gr.Markdown('''
         # ChatGPT
@@ -35,9 +44,8 @@ if __name__ == '__main__':
                               placeholder='chatgpt results')
 
             with gr.Column(scale=1):
-                role = gr.Dropdown(choices=['system', 'user', 'assistant'], value='assistant', label='role', interactive=True)
-                btn_gen = gr.Button(value="Generate", variant='primary')
-                btn_clear = gr.Button(value="Clear")
+                btn_gen = gr.Button(value="发送", variant='primary')
+                btn_clear = gr.Button(value="重新开始聊天")
 
         gr.Examples([
             ["如何成为魔法少女"],
@@ -45,12 +53,12 @@ if __name__ == '__main__':
             ["请帮我用C++写出快排的代码。"]],
             inputs=[prompt],
             outputs=[res],
-            fn=generate_answer,
+            fn=my_chatgpt.chat,
             cache_examples=False)
 
-        btn_gen.click(fn=generate_answer, inputs=[prompt, role],
+        btn_gen.click(fn=my_chatgpt.chat, inputs=prompt,
                       outputs=res)
-        btn_clear.click(fn=clean_textbox,
+        btn_clear.click(fn=my_chatgpt.reset,
                         inputs=[prompt, res],
                         outputs=[prompt, res])
 
